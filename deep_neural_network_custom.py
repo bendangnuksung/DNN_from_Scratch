@@ -135,18 +135,42 @@ class My_DNN():
 
 
     def feed_forward(self, input_value):
-        h_layer_1_value = self.logits_calculation(input_value, self.weight_layer_1, activation='relu')
-        h_layer_2_value = self.logits_calculation(h_layer_1_value,self.weight_layer_2, activation='relu')
-        output_layer_value = self.logits_calculation(h_layer_2_value, self.weight_output_layer, activation='softmax')
+        self.h_layer_1_value = self.logits_calculation(input_value, self.weight_layer_1, activation='relu')
+        self.h_layer_2_value = self.logits_calculation(self.h_layer_1_value,self.weight_layer_2, activation='relu')
+        self.output_layer_value = self.logits_calculation(self.h_layer_2_value, self.weight_output_layer, activation='softmax')
 
-        return output_layer_value
+        return self.output_layer_value
+
+
+    def change_weights(self, output, is_output):
+        # todo:
+        if is_output:
+            change_rate = (learning_rate * (1-output))
+        else:
+            change_rate = -(learning_rate * output)
+
+
+
+
+
+    def back_propogation(self, output, expected_value):
+        for i in range(len(output)):
+            if expected_value[i] == 1:
+                self.change_weights(output[i], is_output = True)
+            else:
+                self.change_weights(output[i], is_output = False)
+
+
+
+
 
     def train(self, train_row):
         input_value = train_row[:-1]
         expected_value = train_row[-1]
-        output = self.feed_forward(input_value)
-        cost = self.cross_entropy(output, expected_value)
-
+        for i in range(epoch):
+            output = self.feed_forward(input_value)
+            cost = self.cross_entropy(output, expected_value)
+            self.back_propogation(output, expected_value)
 
 
 
