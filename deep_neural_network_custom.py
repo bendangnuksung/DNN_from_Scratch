@@ -50,7 +50,20 @@ class My_DNN():
         return new_weight
 
 
-    def softmax(self,value):
+    def softmax(self,values):
+        '''
+        Exp(value) / ∑ Exp(value)
+        :param value:
+        :return:
+        '''
+        expo = []
+        final_value = []
+        for val in values:
+            expo.append(math.exp(val))
+        sum_exp = sum(expo)
+        for val in expo:
+            final_value.append(val/sum_exp)
+        return final_value
 
 
     def relu(self,value):
@@ -60,33 +73,30 @@ class My_DNN():
             return 0
 
 
-    def call_activation(self,value,activation):
-        if activation =='softmax':
-            self.softmax(value)
-
-        elif activation =='relu':
-            return self.relu(value)
-
-        else:
-            return value
-
-
-
     def logits_calculation(self, input_values, weight_layer, activation):
         final_logits = []
         for weights in weight_layer:
             logit_sum = 0
+            # ∑ input * weights
             for each_input, single_weight in zip(input_values, weights):
                 logit_sum += each_input * single_weight
-            logit_sum = self.call_activation(logit_sum, activation)
+            # activation relu
+            if activation == 'relu':
+                logit_sum = self.relu(logit_sum)
             final_logits.append(logit_sum)
+
+        # activation softmax for output
+        if activation == 'softmax':
+            final_logits = self.softmax(final_logits)
+
         return final_logits
 
 
 
     def feed_forward(self, input_value):
         h_layer_1_value = self.logits_calculation(input_value, self.weight_layer_1, activation='relu')
-        h_layer_2_value = self.logits_calculation(h_layer_1_value,self.weight_layer_2, activation='softmax')
+        h_layer_2_value = self.logits_calculation(h_layer_1_value,self.weight_layer_2, activation='relu')
+        output_layer_value = self.logits_calculation(h_layer_2_value, self.weight_output_layer, activation='softmax')
 
 
     def train(self, train_row):
