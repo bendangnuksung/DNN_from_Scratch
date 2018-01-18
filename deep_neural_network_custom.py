@@ -153,20 +153,20 @@ class My_DNN():
         average_value = self.get_average_input_value()
 
         for i,weights in enumerate(self.weight_layers):
-            for j,each_weight in enumerate(weights):
+            for j,weight in enumerate(weights):
+                for k, each_weight in enumerate(weight):
+                    for post_logits_value in self.h_layer_input_value[i]:
+                        if is_output:
+                            if post_logits_value < average_value:
+                                self.weight_layers[i][j][k] -= (learning_rate * (1 - output)) * 10
+                            else:
+                                self.weight_layers[i][j][k] -= (learning_rate * (1 - output)) * 2
 
-                for k,input_value in enumerate(self.h_layer_input_value[j]):
-                    if is_output:
-                        if input_value < average_value:
-                            self.weight_layers[i][j][k] += (learning_rate * (1-output)) * 10
                         else:
-                            self.weight_layers[i][j][k] += (learning_rate * (1 - output)) * 2
-
-                    else:
-                        if input_value >= average_value:
-                            self.weight_layers[i][j][k] -= (learning_rate * (1 - output)) * 10
-                        else:
-                            self.weight_layers[i][j][k] -= (learning_rate * (1 - output)) * 2
+                            if post_logits_value >= average_value:
+                                self.weight_layers[i][j][k] += (learning_rate * (1 - output)) * 10
+                            else:
+                                self.weight_layers[i][j][k] += (learning_rate * (1 - output)) * 2
 
 
 
@@ -179,8 +179,6 @@ class My_DNN():
 
 
 
-
-
     def train(self, train_row):
         input_value = train_row[:-1]
         expected_value = train_row[-1]
@@ -188,7 +186,8 @@ class My_DNN():
             output = self.feed_forward(input_value)
             cost = self.cross_entropy(output, expected_value)
             self.back_propogation(output, expected_value)
-
+            print(cost)
+            print (i)
 
 
 
@@ -199,4 +198,5 @@ if __name__ == '__main__':
 
     for row in train_set:
         obj.train(row)
+        break
 
