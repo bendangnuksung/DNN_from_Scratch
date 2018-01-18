@@ -89,20 +89,10 @@ class My_DNN():
         self.learning_rate = learning_rate
         self.input_numbers = input_numbers
         self.output_layer_nodes = output_number
-        self.weight_layer_1 = self._get_random_weights(self.input_numbers, self.h_layer_1_nodes)
-        self.weight_layer_2 = self._get_random_weights(self.h_layer_1_nodes, self.h_layer_2_nodes)
-        self.weight_output_layer = self._get_random_weights(self.h_layer_2_nodes, self.output_layer_nodes)
-
-
-    def cross_entropy(self, output, expected_output):
-        cost = 0
-        for i in range(len(output)):
-            if expected_output[i] == 1:
-                cost -= math.log(output[i])
-            else:
-                cost -= math.log(1- output[i])
-        return cost
-
+        self.weight_layers = []
+        self.weight_layers.append(self._get_random_weights(self.input_numbers, self.h_layer_1_nodes))
+        self.weight_layers.append(self._get_random_weights(self.h_layer_1_nodes, self.h_layer_2_nodes))
+        self.weight_layers.append(self._get_random_weights(self.h_layer_2_nodes, self.output_layer_nodes))
 
     def _get_random_weights(self, prev_node_count, current_node_count):
         random.seed(10)
@@ -115,7 +105,18 @@ class My_DNN():
         return new_weight
 
 
-    def logits_calculation(self, input_values, weight_layer, activation):
+    def cross_entropy(self, output, expected_output):
+        cost = 0
+        for i in range(len(output)):
+            if expected_output[i] == 1:
+                cost -= math.log(output[i])
+            else:
+                cost -= math.log(1- output[i])
+        return cost
+
+
+
+    def logits_calculation(self, input_values, weight_layer, activation ='relu'):
         final_logits = []
         for weights in weight_layer:
             logit_sum = 0.0
@@ -127,29 +128,45 @@ class My_DNN():
                 logit_sum = relu(logit_sum)
             final_logits.append(logit_sum)
 
-        # activation softmax for output
-        if activation == 'softmax':
-            final_logits = softmax(final_logits)
-
         return final_logits
 
 
     def feed_forward(self, input_value):
-        self.h_layer_1_value = self.logits_calculation(input_value, self.weight_layer_1, activation='relu')
-        self.h_layer_2_value = self.logits_calculation(self.h_layer_1_value,self.weight_layer_2, activation='relu')
-        self.output_layer_value = self.logits_calculation(self.h_layer_2_value, self.weight_output_layer, activation='softmax')
+        self.h_layer_input_value = []
+        self.h_layer_input_value.append(self.logits_calculation(input_value, self.weight_layers[0]))
+        self.h_layer_input_value.append(self.logits_calculation(self.h_layer_input_value[0],self.weight_layers[1]))
+        self.h_layer_input_value.append(self.logits_calculation(self.h_layer_input_value[1], self.weight_layers[2]))
 
-        return self.output_layer_value
+        return softmax(self.h_layer_input_value[2])
+
+
+    def get_average_input_value(self):
+        sum_average = 0.0
+        count = 0
+        for value in self.h_layer_input_value:
+            count += len(value)
+            sum_average +=sum(value)
+        return sum_average/ count
 
 
     def change_weights(self, output, is_output):
-        # todo:
-        if is_output:
-            change_rate = (learning_rate * (1-output))
-        else:
-            change_rate = -(learning_rate * output)
+        average_value = self.get_average_input_value()
 
+        for i,weights in enumerate(self.weight_layers):
+            for j,each_weight in enumerate(weights):
 
+                for k,input_value in enumerate(self.h_layer_input_value[j]):
+                    if is_output:
+                        if input_value < average_value:
+                            self.weight_layers[i][j][k] += (learning_rate * (1-output)) * 10
+                        else:
+                            self.weight_layers[i][j][k] += (learning_rate * (1 - output)) * 2
+
+                    else:
+                        if input_value >= average_value:
+                            self.weight_layers[i][j][k] -= (learning_rate * (1 - output)) * 10
+                        else:
+                            self.weight_layers[i][j][k] -= (learning_rate * (1 - output)) * 2
 
 
 
