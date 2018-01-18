@@ -13,7 +13,7 @@ output_layer =3
 
 # optional
 learning_rate = 0.001
-epoch = 500
+epoch = 100
 
 ##############################################
 
@@ -95,7 +95,7 @@ class My_DNN():
         self.weight_layers.append(self._get_random_weights(self.h_layer_2_nodes, self.output_layer_nodes))
 
     def _get_random_weights(self, prev_node_count, current_node_count):
-        random.seed(10)
+        random.seed(5)
         new_weight =[]
         for i in range(current_node_count):
             temp_weight = []
@@ -140,54 +140,42 @@ class My_DNN():
         return softmax(self.h_layer_input_value[2])
 
 
-    def get_average_input_value(self):
-        sum_average = 0.0
-        count = 0
-        for value in self.h_layer_input_value:
-            count += len(value)
-            sum_average +=sum(value)
-        return sum_average/ count
-
-
-    def change_weights(self, output, is_output):
-        average_value = self.get_average_input_value()
+    def back_propogation(self,cost):
 
         for i,weights in enumerate(self.weight_layers):
             for j,weight in enumerate(weights):
                 for k, each_weight in enumerate(weight):
-                    for post_logits_value in self.h_layer_input_value[i]:
-                        if is_output:
-                            if post_logits_value < average_value:
-                                self.weight_layers[i][j][k] -= (learning_rate * (1 - output)) * 10
-                            else:
-                                self.weight_layers[i][j][k] -= (learning_rate * (1 - output)) * 2
-
-                        else:
-                            if post_logits_value >= average_value:
-                                self.weight_layers[i][j][k] += (learning_rate * (1 - output)) * 10
-                            else:
-                                self.weight_layers[i][j][k] += (learning_rate * (1 - output)) * 2
-
-
-
-    def back_propogation(self, output, expected_value):
-        for i in range(len(output)):
-            if expected_value[i] == 1:
-                self.change_weights(output[i], is_output = True)
-            else:
-                self.change_weights(output[i], is_output = False)
-
+                    original_weight = each_weight
+                    self.weight_layers[i][j][k] += learning_rate
+                    output = self.feed_forward(self.input_value)
+                    new_cost = self.cross_entropy(output,self.expected_value)
+                    if new_cost == cost:
+                        self.weight_layers[i][j][k] = original_weight
+                    elif new_cost > cost:
+                        self.weight_layers[i][j][k] = original_weight - learning_rate
+                        cost = cost - (new_cost-cost)
+                    else:
+                        cost = new_cost
 
 
     def train(self, train_row):
-        input_value = train_row[:-1]
-        expected_value = train_row[-1]
+        self.input_value = train_row[:-1]
+        self.expected_value = train_row[-1]
         for i in range(epoch):
-            output = self.feed_forward(input_value)
-            cost = self.cross_entropy(output, expected_value)
-            self.back_propogation(output, expected_value)
+            output = self.feed_forward(self.input_value)
+            cost = self.cross_entropy(output, self.expected_value)
+            self.back_propogation(cost)
             print(cost)
             print (i)
+
+
+    def test(self, test_row):
+        input_value = test_row[:-1]
+        expected_value = test_row[-1]
+        output = self.feed_forward(input_value)
+        print ("expected: ", expected_value)
+        print("result :", output)
+
 
 
 
@@ -198,5 +186,9 @@ if __name__ == '__main__':
 
     for row in train_set:
         obj.train(row)
+        break
+
+    for row in train_set:
+        obj.test(row)
         break
 
