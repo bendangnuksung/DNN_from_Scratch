@@ -172,8 +172,6 @@ class My_DNN():
             for j in range(len(layer)):
                 neuron = layer[j]
                 neuron['delta'] = errors[j] * sigmoid_derivative(neuron['output'])
-                if i == len(self.hidden_layers) - 1:
-                    continue
         self.update_weights()
 
 
