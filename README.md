@@ -1,7 +1,5 @@
-## A simple pure python implementation of Deep Neural Network ( for starters )
+#### Implementation of Deep Neural Network from scratch Python
 
-Making a supervised DNN model without any additional packages such as ~(Numpy, Tensorflow, keras etc.)
+A supervised DNN classification model without any additional packages such as ~(Numpy, Tensorflow, keras etc.)
 
-Can be reusable for training other supervised model
-
-status: incomplete
+Reusable for other testing purpose
