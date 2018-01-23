@@ -7,21 +7,23 @@ import csv
 ##############################################
 # User define (change accordingly)
 train_path = "train_test_data/iris.csv"
-test_path  = "train_test_data/iris.csv"
+test_path  = "train_test_data/test.csv"
 input_layer = 4
-output_layer =3
+output_layer = 3
 
 # optional
 learning_rate = 0.001
-epoch = 100
+epoch = 50
 
 ##############################################
 
 
-
-
-
 def one_hot_encoding(value):
+    """
+    encodes categorical integer. 1:100, 2:010, 3:001
+    :param value:
+    :return:
+    """
     one_hot = []
     for i in range(output_layer):
         if (i+1) == value:
@@ -31,35 +33,25 @@ def one_hot_encoding(value):
     return one_hot
 
 
-def get_train_set(path):
+def get_dataset(path, is_type):
     """
         1) training data set should be in CSV format
         2) last value of the row should be output(class)
         3) output(class) should be labelled numeric eg: 1,2,3
     """
     file = open(path)
-    next(file)
+    if is_type == 'train':
+        next(file)
     file = csv.reader(file)
     rows = []
     for row in file:
-        row = list(map(float,row))
+        row = list(map(float, row))
         row[-1] = one_hot_encoding(row[-1])
         rows.append(row)
     return rows
 
-
-
-def get_test_set():
-
-    return
-
-
+# Activation and derivative functions:
 def softmax(values):
-    '''
-    Exp(value) / ∑ Exp(value)
-    :param value:
-    :return:
-    '''
     expo = []
     final_value = []
     for val in values:
@@ -69,45 +61,53 @@ def softmax(values):
         final_value.append(val/sum_exp)
     return final_value
 
-
 def relu(value):
-    if (value > 0):
-        return value
-    else:
-        return 0
+    return value * (value>0)
+
+def sigmoid(value):
+    return 1 / (1 + math.exp(-value))
+
+def sigmoid_derivative(value):
+    return value * (1.0 - value)
+
 
 
 class My_DNN():
 
-    h_layer_1_nodes = 5
-    h_layer_2_nodes = 3
-    output_layer_nodes = 3
+    h_layer_1_nodes = 20
+    h_layer_2_nodes = 20
 
-
-    def __init__(self, input_numbers, output_number, learning_rate= 0.001, epoch=200):
+    def __init__(self, input_numbers, output_number, learning_rate= 0.001, epoch=10, layers_no=2):
         self.epoch = epoch
         self.learning_rate = learning_rate
         self.input_numbers = input_numbers
-        self.output_layer_nodes = output_number
-        self.weight_layers = []
-        self.weight_layers.append(self._get_random_weights(self.input_numbers, self.h_layer_1_nodes))
-        self.weight_layers.append(self._get_random_weights(self.h_layer_1_nodes, self.h_layer_2_nodes))
-        self.weight_layers.append(self._get_random_weights(self.h_layer_2_nodes, self.output_layer_nodes))
+        self.output_numbers = output_number
+        self.hidden_layers = []
+        for i in range(layers_no+1):
+            self.hidden_layers.append([])
+            if i == 0:
+                self.hidden_layers[0] = (self._get_random_weights(self.input_numbers, self.h_layer_1_nodes))
+            elif i == layers_no:
+                self.hidden_layers[i] = (self._get_random_weights(self.h_layer_1_nodes, self.output_numbers))
+            else:
+                self.hidden_layers[i] = (self._get_random_weights(self.h_layer_1_nodes, self.h_layer_2_nodes))
+
 
     def _get_random_weights(self, prev_node_count, current_node_count):
-        random.seed(5)
         new_weight =[]
         for i in range(current_node_count):
             temp_weight = []
             for j in range(prev_node_count):
-                temp_weight.append(random.uniform(-0.3,1))
-            new_weight.append(temp_weight)
+                temp_weight.append(random.uniform(0, 1))
+            new_weight.append({'weights':temp_weight})
         return new_weight
 
 
     def cross_entropy(self, output, expected_output):
         cost = 0
         for i in range(len(output)):
+            if output[i] == 0:
+                continue
             if expected_output[i] == 1:
                 cost -= math.log(output[i])
             else:
@@ -115,80 +115,117 @@ class My_DNN():
         return cost
 
 
-
-    def logits_calculation(self, input_values, weight_layer, activation ='relu'):
+    def logits_calculation(self, input_values, layer, layer_no, activation ='sigmoid'):
         final_logits = []
-        for weights in weight_layer:
+        for i,neuron in enumerate(layer):
             logit_sum = 0.0
             # ∑ input * weights
-            for each_input, single_weight in zip(input_values, weights):
-                logit_sum += each_input * single_weight
-            # activation relu
-            if activation == 'relu':
+            for each_input, each_weight in zip(input_values, neuron['weights']):
+                logit_sum += each_input * each_weight
+            if activation == 'sigmoid':
+                logit_sum = sigmoid(logit_sum)
+                self.hidden_layers[layer_no][i]['output'] = logit_sum
+            elif activation == 'relu':
                 logit_sum = relu(logit_sum)
+                self.hidden_layers[layer_no][i]['output'] = logit_sum
             final_logits.append(logit_sum)
-
+        if activation == 'softmax':
+            softmax_result = softmax(final_logits)
+            for i in range(len(softmax_result)):
+                self.hidden_layers[layer_no][i]['output'] = softmax_result[i]
+            return softmax_result
         return final_logits
 
 
     def feed_forward(self, input_value):
-        self.h_layer_input_value = []
-        self.h_layer_input_value.append(self.logits_calculation(input_value, self.weight_layers[0]))
-        self.h_layer_input_value.append(self.logits_calculation(self.h_layer_input_value[0],self.weight_layers[1]))
-        self.h_layer_input_value.append(self.logits_calculation(self.h_layer_input_value[1], self.weight_layers[2]))
-
-        return softmax(self.h_layer_input_value[2])
+        output_1 = self.logits_calculation(input_value, self.hidden_layers[0], layer_no=0)
+        output_2 = self.logits_calculation(output_1, self.hidden_layers[1], layer_no=1)
+        output_3 = self.logits_calculation(output_2, self.hidden_layers[2], layer_no=2, activation='softmax')
+        return output_3
 
 
-    def back_propogation(self,cost):
+    def update_weights(self):
+        for i in range(len(self.hidden_layers)):
+            inputs = self.input_value
+            if i != 0:
+                inputs = [neuron['output'] for neuron in self.hidden_layers[i - 1]]
+            for j in range(len(self.hidden_layers[i])):
+                for k in range(len(inputs)):
+                    self.hidden_layers[i][j]['weights'][k] += self.learning_rate * self.hidden_layers[i][j]['delta'] * inputs[k]
+                self.hidden_layers[i][j]['weights'][-1] += self.learning_rate * self.hidden_layers[i][j]['delta']
 
-        for i,weights in enumerate(self.weight_layers):
-            for j,weight in enumerate(weights):
-                for k, each_weight in enumerate(weight):
-                    original_weight = each_weight
-                    self.weight_layers[i][j][k] += learning_rate
-                    output = self.feed_forward(self.input_value)
-                    new_cost = self.cross_entropy(output,self.expected_value)
-                    if new_cost == cost:
-                        self.weight_layers[i][j][k] = original_weight
-                    elif new_cost > cost:
-                        self.weight_layers[i][j][k] = original_weight - learning_rate
-                        cost = cost - (new_cost-cost)
-                    else:
-                        cost = new_cost
+
+    def back_propogation_1(self):
+        for i in reversed(range(len(self.hidden_layers))):
+            layer = self.hidden_layers[i]
+            errors = []
+            if i == len(self.hidden_layers) - 1:
+                for j in range(len(layer)):
+                    neuron = layer[j]
+                    errors.append(self.expected_value[j] - neuron['output'])
+            else:
+                for j in range(len(layer)):
+                    error = 0.0
+                    for neuron in self.hidden_layers[i+1]:
+                        error += (neuron['weights'][j] * neuron['delta'])
+                    errors.append(error)
+            for j in range(len(layer)):
+                neuron = layer[j]
+                neuron['delta'] = errors[j] * sigmoid_derivative(neuron['output'])
+                if i == len(self.hidden_layers) - 1:
+                    continue
+        self.update_weights()
+
+
+    def test(self, test_row):
+        """
+        gets percentage of each input to occur for test purpose
+        :param test_row:
+        :return:
+        """
+        input_value = test_row[:-1]
+        expected_value = test_row[-1]
+        output = self.feed_forward(input_value)
+        print("expected: ", expected_value)
+        print("result :", output)
+
+
+    def accuracy(self, test_rows):
+        correct = 0
+        for row in test_rows:
+            input_value = row[:-1]
+            expected_value = row[-1]
+            output_layer = self.feed_forward(input_value)
+            max_prob = max(output_layer)
+            for i,j in zip(output_layer,expected_value):
+                if i == max_prob and j == 1:
+                    correct +=1
+        accuracy = correct/len(test_rows)
+        return accuracy*100
 
 
     def train(self, train_row):
         self.input_value = train_row[:-1]
         self.expected_value = train_row[-1]
+        cost_list = []
         for i in range(epoch):
             output = self.feed_forward(self.input_value)
             cost = self.cross_entropy(output, self.expected_value)
-            self.back_propogation(cost)
-            print(cost)
-            print (i)
-
-
-    def test(self, test_row):
-        input_value = test_row[:-1]
-        expected_value = test_row[-1]
-        output = self.feed_forward(input_value)
-        print ("expected: ", expected_value)
-        print("result :", output)
-
-
+            cost_list.append(cost)
+            if i%5 == 0:
+                print(sum(cost_list)/len(cost_list))
+            self.back_propogation_1()
+        pass
 
 
 if __name__ == '__main__':
-    obj = My_DNN(input_layer,output_layer)
-    train_set = get_train_set(train_path)
-    test_set = get_test_set()
-
-    for row in train_set:
+    obj = My_DNN(input_layer,output_layer, learning_rate= learning_rate)
+    train_set = get_dataset(train_path, is_type= 'train')
+    test_set = get_dataset(test_path, is_type= 'test')
+    for i,row in enumerate(train_set):
         obj.train(row)
-        break
 
-    for row in train_set:
+    for i,row in enumerate(test_set):
         obj.test(row)
-        break
 
+    print ("accuracy: ",obj.accuracy(test_set),"%")
